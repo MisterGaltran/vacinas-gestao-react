@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useChildren } from '../hooks/useChildren';
@@ -98,7 +98,7 @@ export function Dashboard() {
   const upcomingCount = vaccines.filter((v) => v.calculated_status === 'upcoming').length;
   const totalCount = vaccines.length;
 
-  const groupedVaccines = groupByMonth(vaccines);
+  const groupedVaccines = useMemo(() => groupByMonth(vaccines), [vaccines]);
 
   return (
     <Layout

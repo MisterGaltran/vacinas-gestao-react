@@ -6,6 +6,7 @@ import { useChildMembers } from '../hooks/useChildMembers';
 import { useVaccines } from '../hooks/useVaccines';
 import { Layout } from '../components/Layout';
 import { supabase } from '../lib/supabase';
+import { resizeImage } from '../lib/imageResize';
 
 function calculateAge(birthDate: string): string {
   const birth = new Date(birthDate);
@@ -125,13 +126,22 @@ export function ChildProfile() {
 
     setUploadingPhoto(true);
     try {
-      // Upload to Supabase Storage
-      const fileExt = file.name.split('.').pop();
-      const fileName = `child-${child.id}-${Date.now()}.${fileExt}`;
+      // Redimensiona no browser antes de mandar pro Storage. Foto típica de
+      // celular tem 3-5 MB; resultado fica ~50-150 KB sem perda visual.
+      const { blob } = await resizeImage(file, {
+        maxWidth: 800,
+        maxHeight: 800,
+        quality: 0.85,
+        mimeType: 'image/jpeg',
+      });
 
+      const fileName = `child-${child.id}-${Date.now()}.jpg`;
       const { error: uploadError } = await supabase.storage
         .from('child-photos')
-        .upload(fileName, file);
+        .upload(fileName, blob, {
+          contentType: 'image/jpeg',
+          cacheControl: '31536000', // 1 ano: o nome é único, sempre seguro
+        });
 
       if (uploadError) throw uploadError;
 
