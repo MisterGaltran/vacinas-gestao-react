@@ -3,6 +3,10 @@ export interface Child {
   family_id: string;
   name: string;
   birth_date: string;
+  photo_url: string | null;
+  parental_email: string | null;
+  maternity: string | null;
+  cpf: string | null;
   created_at: string;
 }
 

@@ -1,6 +1,8 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useChildren } from '../hooks/useChildren';
+import { useChildrenStats } from '../hooks/useChildrenStats';
 import { useVaccines } from '../hooks/useVaccines';
 import { Layout } from '../components/Layout';
 import { ChildSelector } from '../components/ChildSelector';
@@ -26,9 +28,21 @@ function formatMonthLabel(monthKey: string): string {
   return `${months[parseInt(month) - 1]} de ${year}`;
 }
 
+function calculateAgeDisplay(birthDateStr: string): string {
+  const birth = new Date(birthDateStr);
+  const today = new Date();
+  const months = (today.getFullYear() - birth.getFullYear()) * 12 + today.getMonth() - birth.getMonth();
+  if (months < 12) return `${months} meses`;
+  const years = Math.floor(months / 12);
+  const remaining = months % 12;
+  return remaining > 0 ? `${years}a ${remaining}m` : `${years} anos`;
+}
+
 export function Dashboard() {
+  const navigate = useNavigate();
   const { user, signOut } = useAuth();
   const { children, loading: childrenLoading, addChild } = useChildren(user);
+  const { statsByChild } = useChildrenStats(children);
   const [selectedChild, setSelectedChild] = useState<Child | null>(null);
   const { vaccines, loading: vaccinesLoading, markAsTaken, unmarkVaccine, addCustomVaccine, deleteCustomVaccine } = useVaccines(selectedChild);
 
@@ -37,7 +51,6 @@ export function Dashboard() {
   const [childName, setChildName] = useState('');
   const [childBirthDate, setChildBirthDate] = useState('');
 
-  // Form custom vaccine
   const [customName, setCustomName] = useState('');
   const [customDisease, setCustomDisease] = useState('');
   const [customAge, setCustomAge] = useState(0);
@@ -73,7 +86,6 @@ export function Dashboard() {
     if (addError) setError(addError.message);
   };
 
-  // Count status
   const takenCount = vaccines.filter((v) => v.calculated_status === 'taken').length;
   const lateCount = vaccines.filter((v) => v.calculated_status === 'late').length;
   const upcomingCount = vaccines.filter((v) => v.calculated_status === 'upcoming').length;
@@ -85,8 +97,9 @@ export function Dashboard() {
     <Layout
       title="Gestão de Vacinas"
       onLogout={signOut}
+      onBack={selectedChild ? () => setSelectedChild(null) : undefined}
       rightContent={
-        children.length > 0 ? (
+        children.length > 0 && selectedChild ? (
           <ChildSelector
             children={children}
             selectedChild={selectedChild}
@@ -114,6 +127,180 @@ export function Dashboard() {
               </svg>
             </button>
           </div>
+        </div>
+      )}
+
+      {/* Cards das crianças (home) */}
+      {!childrenLoading && children.length > 0 && !selectedChild && (
+        <div className="space-y-5 animate-fade-in-up">
+          <div className="flex items-center gap-3 mb-2">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-br from-accent-400 to-accent-600 flex items-center justify-center text-white text-xl shadow-md shadow-accent-500/25">
+              👨‍👩‍👧
+            </div>
+            <div className="flex-1">
+              <h2 className="text-xl font-extrabold text-text-primary-light dark:text-text-primary-dark">
+                Suas Crianças
+              </h2>
+              <p className="text-xs text-text-muted-light dark:text-text-muted-dark">
+                {children.length} criança{children.length > 1 ? 's' : ''} cadastrada{children.length > 1 ? 's' : ''} · toque para ver vacinas
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {children.map((child) => {
+              const stats = statsByChild[child.id];
+              const total = stats?.total ?? 0;
+              const taken = stats?.taken ?? 0;
+              const late = stats?.late ?? 0;
+              const upcoming = stats?.upcoming ?? 0;
+              const coverage = total > 0 ? Math.round((taken / total) * 100) : 0;
+              const ageDisplay = calculateAgeDisplay(child.birth_date);
+
+              return (
+                <div
+                  key={child.id}
+                  className={`card-premium p-5 relative overflow-hidden transition-all duration-300 ${
+                    late > 0 ? 'border-l-[3px] border-l-danger-500' : 'border-l-[3px] border-l-primary-400'
+                  }`}
+                >
+                  {/* Header: foto + nome + idade + ações */}
+                  <div className="flex items-start gap-4 mb-4">
+                    {child.photo_url ? (
+                      <img
+                        src={child.photo_url}
+                        alt={child.name}
+                        className="w-16 h-16 rounded-2xl object-cover border-2 border-white dark:border-gray-700 shadow-md shrink-0"
+                      />
+                    ) : (
+                      <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary-400 to-accent-500 flex items-center justify-center text-white text-3xl shadow-md shrink-0">
+                        👶
+                      </div>
+                    )}
+
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-base font-extrabold text-text-primary-light dark:text-text-primary-dark truncate">
+                        {child.name}
+                      </h3>
+                      <p className="text-xs text-text-secondary-light dark:text-text-secondary-dark mt-0.5">
+                        🎂 {new Date(child.birth_date).toLocaleDateString('pt-BR')} · {ageDisplay}
+                      </p>
+                      {child.maternity && (
+                        <p className="text-[11px] text-text-muted-light dark:text-text-muted-dark mt-0.5 truncate">
+                          🏥 {child.maternity}
+                        </p>
+                      )}
+                    </div>
+
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/child/${child.id}`);
+                      }}
+                      className="w-9 h-9 flex items-center justify-center rounded-xl bg-black/5 dark:bg-white/5 hover:bg-primary-50 dark:hover:bg-primary-500/15 text-text-secondary-light dark:text-text-secondary-dark hover:text-primary-600 dark:hover:text-primary-400 transition-all shrink-0"
+                      title="Editar perfil"
+                      aria-label="Editar perfil"
+                    >
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                    </button>
+                  </div>
+
+                  {/* Stats: 3 colunas */}
+                  <div className="grid grid-cols-3 gap-2 mb-4">
+                    <div className="bg-success-50 dark:bg-success-500/10 rounded-xl px-3 py-2.5 text-center border border-success-100 dark:border-success-500/20">
+                      <div className="text-lg font-extrabold text-success-600 dark:text-green-400 tabular-nums leading-tight">
+                        {taken}
+                      </div>
+                      <p className="text-[9px] font-semibold text-success-600 dark:text-green-400 uppercase tracking-wider mt-0.5">
+                        ✅ Tomadas
+                      </p>
+                    </div>
+                    <div className={`rounded-xl px-3 py-2.5 text-center border ${
+                      late > 0
+                        ? 'bg-danger-50 dark:bg-danger-500/10 border-danger-100 dark:border-danger-500/20'
+                        : 'bg-gray-50 dark:bg-gray-800/50 border-border-light dark:border-border-dark'
+                    }`}>
+                      <div className={`text-lg font-extrabold tabular-nums leading-tight ${
+                        late > 0 ? 'text-danger-600 dark:text-red-400' : 'text-text-muted-light dark:text-text-muted-dark'
+                      }`}>
+                        {late}
+                      </div>
+                      <p className={`text-[9px] font-semibold uppercase tracking-wider mt-0.5 ${
+                        late > 0 ? 'text-danger-600 dark:text-red-400' : 'text-text-muted-light dark:text-text-muted-dark'
+                      }`}>
+                        🔴 Atrasadas
+                      </p>
+                    </div>
+                    <div className="bg-primary-50 dark:bg-primary-500/10 rounded-xl px-3 py-2.5 text-center border border-primary-100 dark:border-primary-500/20">
+                      <div className="text-lg font-extrabold text-primary-600 dark:text-blue-400 tabular-nums leading-tight">
+                        {upcoming}
+                      </div>
+                      <p className="text-[9px] font-semibold text-primary-600 dark:text-blue-400 uppercase tracking-wider mt-0.5">
+                        🔜 Próximas
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Cobertura */}
+                  {total > 0 && (
+                    <div className="mb-4">
+                      <div className="flex items-center justify-between text-[11px] mb-1">
+                        <span className="font-semibold text-text-secondary-light dark:text-text-secondary-dark">
+                          Cobertura ({taken}/{total})
+                        </span>
+                        <span className="font-bold text-success-600 dark:text-green-400 tabular-nums">
+                          {coverage}%
+                        </span>
+                      </div>
+                      <div className="h-1.5 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-success-400 to-success-500 rounded-full transition-all duration-700 ease-out"
+                          style={{ width: `${coverage}%` }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Ações */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setSelectedChild(child)}
+                      className="btn-primary flex-1 text-xs !py-2"
+                    >
+                      <span className="flex items-center justify-center gap-1.5">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                        </svg>
+                        Ver vacinas
+                      </span>
+                    </button>
+                    <button
+                      onClick={() => navigate(`/child/${child.id}`)}
+                      className="btn-secondary text-xs !py-2 !px-3"
+                      title="Perfil completo"
+                    >
+                      Perfil
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {!showAddChild && (
+            <div className="text-center pt-4 pb-2">
+              <button onClick={() => setShowAddChild(true)} className="btn-ghost text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-semibold text-sm">
+                <span className="flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                  </svg>
+                  Cadastrar nova criança
+                </span>
+              </button>
+            </div>
+          )}
         </div>
       )}
 
@@ -205,12 +392,47 @@ export function Dashboard() {
         </div>
       )}
 
-      {/* Dashboard com dados */}
+      {/* Dashboard com dados (criança selecionada) */}
       {selectedChild && (
         <div className="animate-fade-in-up">
+          {/* Cabeçalho da criança selecionada com botão de perfil */}
+          <div className="flex items-center justify-between gap-3 mb-6">
+            <div className="flex items-center gap-3 min-w-0">
+              {selectedChild.photo_url ? (
+                <img
+                  src={selectedChild.photo_url}
+                  alt={selectedChild.name}
+                  className="w-11 h-11 rounded-xl object-cover border-2 border-white dark:border-gray-700 shadow-md shrink-0"
+                />
+              ) : (
+                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-primary-400 to-accent-500 flex items-center justify-center text-white text-xl shadow-md shrink-0">
+                  👶
+                </div>
+              )}
+              <div className="min-w-0">
+                <h2 className="text-lg font-extrabold text-text-primary-light dark:text-text-primary-dark truncate">
+                  {selectedChild.name}
+                </h2>
+                <p className="text-xs text-text-muted-light dark:text-text-muted-dark">
+                  🎂 {calculateAgeDisplay(selectedChild.birth_date)}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => navigate(`/child/${selectedChild.id}`)}
+              className="btn-secondary text-xs !py-2 !px-3 shrink-0"
+            >
+              <span className="flex items-center gap-1.5">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                </svg>
+                Perfil
+              </span>
+            </button>
+          </div>
+
           {/* Painel de Estatísticas Premium */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
-            {/* Total */}
             <div className="card-stat border-t-[3px] border-t-primary-400 hover:border-t-primary-500">
               <div className="text-3xl font-extrabold text-text-primary-light dark:text-text-primary-dark mb-1 tabular-nums">
                 {totalCount}
@@ -223,7 +445,6 @@ export function Dashboard() {
               </p>
             </div>
 
-            {/* Tomadas */}
             <div className="card-stat border-t-[3px] border-t-success-500 hover:border-t-success-600 before:from-success-400 before:to-success-500">
               <div className="relative inline-block mb-1">
                 <div className="absolute inset-0 bg-success-400/20 rounded-full blur-md" />
@@ -236,7 +457,6 @@ export function Dashboard() {
               </p>
             </div>
 
-            {/* Atrasadas */}
             <div className={`card-stat border-t-[3px] border-t-danger-500 hover:border-t-danger-600 before:from-danger-400 before:to-danger-500 ${lateCount > 0 ? 'animate-pulse' : ''}`}>
               <div className="relative inline-block mb-1">
                 {lateCount > 0 && (
@@ -251,7 +471,6 @@ export function Dashboard() {
               </p>
             </div>
 
-            {/* Próximas */}
             <div className="card-stat border-t-[3px] border-t-primary-400 hover:border-t-primary-500 before:from-primary-400 before:to-primary-500">
               <div className="text-3xl font-extrabold text-primary-600 dark:text-blue-400 mb-1 tabular-nums">
                 {upcomingCount}

@@ -4,11 +4,12 @@ import { useTheme } from '../context/ThemeContext';
 interface LayoutProps {
   children: ReactNode;
   title: string;
+  onBack?: () => void;
   onLogout?: () => void;
   rightContent?: ReactNode;
 }
 
-export function Layout({ children, title, onLogout, rightContent }: LayoutProps) {
+export function Layout({ children, title, onBack, onLogout, rightContent }: LayoutProps) {
   const { theme, toggleTheme } = useTheme();
 
   return (
@@ -17,11 +18,22 @@ export function Layout({ children, title, onLogout, rightContent }: LayoutProps)
       <header className="sticky top-0 z-30 glass-strong border-b border-border-light dark:border-border-dark">
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
+            {onBack && (
+              <button
+                onClick={onBack}
+                className="w-8 h-8 rounded-xl flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/10 transition-colors text-text-secondary-light dark:text-text-secondary-dark"
+                aria-label="Voltar"
+              >
+                <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
+                </svg>
+              </button>
+            )}
             <div className="relative">
               <div className="absolute inset-0 bg-gradient-to-br from-primary-500 to-accent-500 rounded-full opacity-20 blur-sm" />
               <span className="relative text-xl">💉</span>
             </div>
-            <h1 className="text-base font-bold text-text-primary-light dark:text-text-primary-dark">
+            <h1 className="text-base font-bold text-text-primary-light dark:text-text-primary-dark truncate max-w-[180px] sm:max-w-xs">
               {title}
             </h1>
           </div>

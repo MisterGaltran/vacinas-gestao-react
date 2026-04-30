@@ -1,9 +1,11 @@
+import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { ThemeProvider } from './context/ThemeContext';
 import { useAuth } from './hooks/useAuth';
 import { Auth } from './pages/Auth';
 import { Dashboard } from './pages/Dashboard';
+import { ChildProfile } from './pages/ChildProfile';
 
-function App() {
+function AppRoutes() {
   const { user, loading } = useAuth();
 
   if (loading) {
@@ -28,13 +30,21 @@ function App() {
     return <Auth />;
   }
 
-  return <Dashboard />;
+  return (
+    <Routes>
+      <Route path="/" element={<Dashboard />} />
+      <Route path="/child/:id" element={<ChildProfile />} />
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
 }
 
-export default function WrappedApp() {
+export default function App() {
   return (
     <ThemeProvider>
-      <App />
+      <BrowserRouter basename="/vacinas-gestao-react">
+        <AppRoutes />
+      </BrowserRouter>
     </ThemeProvider>
   );
 }

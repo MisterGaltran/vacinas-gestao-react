@@ -49,6 +49,21 @@ export function useChildren(user: User | null) {
     return { data, error };
   };
 
+  const updateChild = async (id: string, updates: Partial<Child>) => {
+    const { data, error } = await supabase
+      .from('children')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (!error && data) {
+      setChildren((prev) => prev.map((c) => (c.id === id ? data : c)));
+    }
+
+    return { data, error };
+  };
+
   const removeChild = async (id: string) => {
     const { error } = await supabase
       .from('children')
@@ -62,5 +77,5 @@ export function useChildren(user: User | null) {
     return { error };
   };
 
-  return { children, loading, addChild, removeChild };
+  return { children, loading, addChild, updateChild, removeChild };
 }
