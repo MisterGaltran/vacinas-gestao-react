@@ -5,6 +5,19 @@ import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
   base: '/vacinas-gestao-react/',
+  build: {
+    rolldownOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('node_modules')) {
+            if (id.includes('react-router')) return 'router';
+            if (id.includes('@supabase')) return 'supabase';
+            if (id.includes('react') || id.includes('scheduler')) return 'react';
+          }
+        },
+      },
+    },
+  },
   plugins: [
     react(),
     tailwindcss(),

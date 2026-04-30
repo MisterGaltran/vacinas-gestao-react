@@ -196,6 +196,9 @@ export function ChildProfile() {
               <img
                 src={photoUrl}
                 alt={child.name}
+                decoding="async"
+                width={96}
+                height={96}
                 className="w-24 h-24 rounded-2xl object-cover border-4 border-white dark:border-gray-700 shadow-lg"
               />
             ) : (

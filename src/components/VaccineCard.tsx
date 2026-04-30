@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import type { VaccineWithRecord } from '../types';
 import { StatusBadge } from './StatusBadge';
 
@@ -14,7 +14,7 @@ function formatDate(dateStr: string): string {
   return `${day}/${month}/${year}`;
 }
 
-export function VaccineCard({ vaccine, onMarkTaken, onUnmark, onDeleteCustom }: VaccineCardProps) {
+function VaccineCardImpl({ vaccine, onMarkTaken, onUnmark, onDeleteCustom }: VaccineCardProps) {
   const [expanded, setExpanded] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
   const [registerDate, setRegisterDate] = useState(new Date().toISOString().split('T')[0]);
@@ -282,3 +282,18 @@ export function VaccineCard({ vaccine, onMarkTaken, onUnmark, onDeleteCustom }: 
     </div>
   );
 }
+
+// Memoizado: re-renderiza só se a vacina (id, status, datas, registro)
+// mudar. Os callbacks vêm de closures novas a cada render do pai mas
+// são tratados como referências estáveis aqui (não comparamos por valor).
+export const VaccineCard = memo(VaccineCardImpl, (prev, next) => {
+  if (prev.vaccine === next.vaccine) return true;
+  return (
+    prev.vaccine.id === next.vaccine.id &&
+    prev.vaccine.calculated_status === next.vaccine.calculated_status &&
+    prev.vaccine.calculated_date === next.vaccine.calculated_date &&
+    prev.vaccine.record?.id === next.vaccine.record?.id &&
+    prev.vaccine.record?.administered_date === next.vaccine.record?.administered_date &&
+    prev.vaccine.record?.notes === next.vaccine.record?.notes
+  );
+});

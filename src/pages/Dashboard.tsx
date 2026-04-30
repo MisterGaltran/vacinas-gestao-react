@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useChildren } from '../hooks/useChildren';
@@ -7,7 +7,7 @@ import { useVaccines } from '../hooks/useVaccines';
 import { Layout } from '../components/Layout';
 import { ChildSelector } from '../components/ChildSelector';
 import { VaccineCard } from '../components/VaccineCard';
-import type { Child, VaccineWithRecord } from '../types';
+import type { VaccineWithRecord } from '../types';
 
 function groupByMonth(vaccines: VaccineWithRecord[]): Record<string, VaccineWithRecord[]> {
   const groups: Record<string, VaccineWithRecord[]> = {};
@@ -43,20 +43,13 @@ export function Dashboard() {
   const { user, signOut } = useAuth();
   const { children, loading: childrenLoading, addChild } = useChildren(user);
   const { statsByChild } = useChildrenStats(children);
-  const [selectedChild, setSelectedChild] = useState<Child | null>(null);
 
-  // Se selectedChild não existe mais em children (deletado, RLS mudou, etc.),
-  // reseta para evitar tela em branco. Reaproveita a referência se o mesmo
-  // id continua disponível, mas com dados atualizados.
-  useEffect(() => {
-    if (!selectedChild) return;
-    const fresh = children.find((c) => c.id === selectedChild.id);
-    if (!fresh) {
-      setSelectedChild(null);
-    } else if (fresh !== selectedChild) {
-      setSelectedChild(fresh);
-    }
-  }, [children, selectedChild]);
+  // selectedChild derivado de selectedChildId — se a criança sumiu da lista,
+  // o derivado vira null automaticamente sem precisar de useEffect.
+  const [selectedChildId, setSelectedChildId] = useState<string | null>(null);
+  const selectedChild = selectedChildId
+    ? children.find((c) => c.id === selectedChildId) ?? null
+    : null;
 
   const { vaccines, loading: vaccinesLoading, markAsTaken, unmarkVaccine, addCustomVaccine, deleteCustomVaccine } = useVaccines(selectedChild);
 
@@ -77,7 +70,7 @@ export function Dashboard() {
 
     const { data, error: addError } = await addChild(childName, childBirthDate);
     if (!addError && data) {
-      setSelectedChild(data);
+      setSelectedChildId(data.id);
       setShowAddChild(false);
       setChildName('');
       setChildBirthDate('');
@@ -111,13 +104,13 @@ export function Dashboard() {
     <Layout
       title="Gestão de Vacinas"
       onLogout={signOut}
-      onBack={selectedChild ? () => setSelectedChild(null) : undefined}
+      onBack={selectedChild ? () => setSelectedChildId(null) : undefined}
       rightContent={
         children.length > 0 && selectedChild ? (
           <ChildSelector
             children={children}
             selectedChild={selectedChild}
-            onSelect={setSelectedChild}
+            onSelect={(c) => setSelectedChildId(c.id)}
             onAddNew={() => setShowAddChild(true)}
           />
         ) : null
@@ -184,6 +177,10 @@ export function Dashboard() {
                       <img
                         src={child.photo_url}
                         alt={child.name}
+                        loading="lazy"
+                        decoding="async"
+                        width={64}
+                        height={64}
                         className="w-16 h-16 rounded-2xl object-cover border-2 border-white dark:border-gray-700 shadow-md shrink-0"
                       />
                     ) : (
@@ -280,7 +277,7 @@ export function Dashboard() {
                   {/* Ações */}
                   <div className="flex gap-2">
                     <button
-                      onClick={() => setSelectedChild(child)}
+                      onClick={() => setSelectedChildId(child.id)}
                       className="btn-primary flex-1 text-xs !py-2"
                     >
                       <span className="flex items-center justify-center gap-1.5">
@@ -416,6 +413,10 @@ export function Dashboard() {
                 <img
                   src={selectedChild.photo_url}
                   alt={selectedChild.name}
+                  loading="lazy"
+                  decoding="async"
+                  width={44}
+                  height={44}
                   className="w-11 h-11 rounded-xl object-cover border-2 border-white dark:border-gray-700 shadow-md shrink-0"
                 />
               ) : (
