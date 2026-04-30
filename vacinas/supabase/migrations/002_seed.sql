@@ -1,5 +1,6 @@
 -- Seed: Calendário Nacional de Vacinação (PNI) — 0 a 18 meses
 -- Execute no SQL Editor após criar as tabelas
+-- IMPORTANTE: Execute primeiro a migration 003_fix_duplicates.sql para criar o índice único
 
 INSERT INTO vaccine_types (name, disease, dose_number, total_doses, recommended_age_months, min_interval_days, description, is_custom) VALUES
 -- Ao nascer
@@ -46,4 +47,5 @@ INSERT INTO vaccine_types (name, disease, dose_number, total_doses, recommended_
 ('VIP (Reforço)', 'Poliomielite', 1, 1, 15, NULL, 'Reforço. Após esquema primário de 3 doses de VIP.', false),
 
 -- 18 meses
-('Tríplice Viral', 'Sarampo, Caxumba, Rubéola', 2, 2, 18, NULL, '2ª dose. Intervalo mínimo de 6 meses após 1ª dose.', false);
+('Tríplice Viral', 'Sarampo, Caxumba, Rubéola', 2, 2, 18, NULL, '2ª dose. Intervalo mínimo de 6 meses após 1ª dose.', false)
+ON CONFLICT DO NOTHING;
