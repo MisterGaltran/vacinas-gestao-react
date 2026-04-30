@@ -1,11 +1,11 @@
 -- Migration 003: Remove duplicate vaccine_types and add unique partial index
 -- Execute this in Supabase SQL Editor
 
--- 1. Remove duplicate entries (keep the first inserted, using created_at), excluding custom vaccines
+-- 1. Remove duplicate entries (keep one row per unique name+disease+dose_number using native UUID ordering)
 WITH duplicates AS (
     SELECT id, ROW_NUMBER() OVER (
         PARTITION BY name, disease, dose_number
-        ORDER BY created_at ASC
+        ORDER BY id ASC
     ) AS rn
     FROM vaccine_types
     WHERE is_custom = false
