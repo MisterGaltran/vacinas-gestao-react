@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useChildren } from '../hooks/useChildren';
+import { useChildMembers } from '../hooks/useChildMembers';
 import { useVaccines } from '../hooks/useVaccines';
 import { Layout } from '../components/Layout';
 import { supabase } from '../lib/supabase';
@@ -23,11 +24,18 @@ export function ChildProfile() {
   const { children, loading: childrenLoading, updateChild, removeChild } = useChildren(user);
   const child = children.find((c) => c.id === id) || null;
   const { vaccines } = useVaccines(child);
+  const { members, addMember, removeMember } = useChildMembers(child?.id);
+
+  const isOwner = !!(user && child && child.family_id === user.id);
 
   const [editing, setEditing] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  // Sharing form
+  const [newMemberEmail, setNewMemberEmail] = useState('');
+  const [addingMember, setAddingMember] = useState(false);
 
   // Form state
   const [name, setName] = useState('');
@@ -238,15 +246,25 @@ export function ChildProfile() {
                   Editar
                 </button>
               )}
-              <button
-                onClick={() => setShowDelete(true)}
-                className="btn-ghost text-danger-500 hover:text-danger-600 text-sm font-semibold"
-              >
-                <svg className="w-4 h-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-                Excluir
-              </button>
+              {isOwner && (
+                <button
+                  onClick={() => setShowDelete(true)}
+                  className="btn-ghost text-danger-500 hover:text-danger-600 text-sm font-semibold"
+                >
+                  <svg className="w-4 h-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                  Excluir
+                </button>
+              )}
+              {!isOwner && (
+                <span className="inline-flex items-center gap-1 text-[11px] font-semibold px-2.5 py-1 rounded-full bg-accent-400/15 dark:bg-accent-400/20 text-accent-600 dark:text-accent-400 border border-accent-400/30">
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                  Compartilhado com você
+                </span>
+              )}
             </div>
           </div>
         </div>
@@ -365,6 +383,127 @@ export function ChildProfile() {
           </div>
         </div>
       )}
+
+      {/* Compartilhamento */}
+      <div className="card-premium mb-6 animate-fade-in-up">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-accent-400 to-accent-600 flex items-center justify-center text-white shadow-md">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-sm font-bold text-text-primary-light dark:text-text-primary-dark">
+              Compartilhar com a família
+            </h3>
+            <p className="text-[11px] text-text-muted-light dark:text-text-muted-dark mt-0.5">
+              {isOwner
+                ? 'Adicione e-mails de outras pessoas para acompanharem juntas'
+                : 'Apenas o dono pode adicionar ou remover acessos'}
+            </p>
+          </div>
+        </div>
+
+        {/* Lista de membros */}
+        <div className="space-y-2 mb-4">
+          {members.length === 0 && (
+            <p className="text-xs text-text-muted-light dark:text-text-muted-dark italic px-2 py-3 text-center">
+              Ninguém ainda. {isOwner ? 'Adicione um e-mail abaixo.' : ''}
+            </p>
+          )}
+          {members.map((m) => {
+            const isCurrentUser = user?.email?.toLowerCase() === m.user_email;
+            return (
+              <div
+                key={m.user_email}
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-border-light dark:border-border-dark"
+              >
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0 ${
+                  m.role === 'owner'
+                    ? 'bg-gradient-to-br from-primary-500 to-accent-500'
+                    : 'bg-gradient-to-br from-success-400 to-success-600'
+                }`}>
+                  {m.user_email.charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-text-primary-light dark:text-text-primary-dark truncate">
+                    {m.user_email}
+                    {isCurrentUser && (
+                      <span className="ml-1.5 text-[10px] text-text-muted-light dark:text-text-muted-dark">(você)</span>
+                    )}
+                  </p>
+                  <span className={`inline-block text-[10px] font-semibold uppercase tracking-wider mt-0.5 ${
+                    m.role === 'owner'
+                      ? 'text-primary-600 dark:text-primary-400'
+                      : 'text-success-600 dark:text-green-400'
+                  }`}>
+                    {m.role === 'owner' ? '👑 Dono' : '✏️ Editor'}
+                  </span>
+                </div>
+                {isOwner && m.role !== 'owner' && (
+                  <button
+                    onClick={async () => {
+                      const { error: rmError } = await removeMember(m.user_email);
+                      if (rmError) setError(rmError.message);
+                    }}
+                    className="w-8 h-8 flex items-center justify-center rounded-lg text-danger-400 hover:bg-danger-50 dark:hover:bg-danger-500/10 hover:text-danger-600 transition-all"
+                    title="Remover acesso"
+                    aria-label="Remover acesso"
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Form: adicionar membro (só dono) */}
+        {isOwner && (
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (!newMemberEmail.trim() || addingMember) return;
+              setAddingMember(true);
+              const { error: addError } = await addMember(newMemberEmail);
+              if (addError) {
+                setError(addError.message);
+              } else {
+                setSuccess(`Acesso liberado para ${newMemberEmail.toLowerCase()}`);
+                setNewMemberEmail('');
+                setTimeout(() => setSuccess(''), 3000);
+              }
+              setAddingMember(false);
+            }}
+            className="flex gap-2 pt-3 border-t border-border-light dark:border-border-dark"
+          >
+            <input
+              type="email"
+              value={newMemberEmail}
+              onChange={(e) => setNewMemberEmail(e.target.value)}
+              placeholder="email@exemplo.com"
+              className="input-premium flex-1 text-xs"
+              required
+            />
+            <button
+              type="submit"
+              disabled={addingMember || !newMemberEmail.trim()}
+              className="btn-primary text-xs !py-2 !px-4 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {addingMember ? 'Adicionando...' : 'Adicionar'}
+            </button>
+          </form>
+        )}
+
+        {isOwner && (
+          <p className="text-[10px] text-text-muted-light dark:text-text-muted-dark mt-3 leading-relaxed">
+            💡 A pessoa precisa <strong>criar uma conta</strong> no app com esse mesmo e-mail para que o bebê apareça pra ela.
+            Editores podem registrar vacinas e editar o perfil — mas só você pode excluir o bebê.
+          </p>
+        )}
+      </div>
 
       {/* Modal de confirmação de exclusão */}
       {showDelete && (

@@ -52,8 +52,9 @@ supabase/
 - **`children`** — `id`, `family_id` (= `auth.uid()`), `name`, `birth_date`, `photo_url`, `parental_email`, `maternity`, `cpf`, `created_at`
 - **`vaccine_types`** — catálogo: PNI (`is_custom=false`) + extras por criança (`is_custom=true`, `custom_child_id`). Campos: `name`, `disease`, `dose_number`, `total_doses`, `recommended_age_months`, `min_interval_days`, `description`. Índice único parcial em `(name, disease, dose_number, is_custom) WHERE is_custom=false`.
 - **`vaccine_records`** — `child_id`, `vaccine_type_id`, `scheduled_date`, `administered_date`, `status` (`pending|taken|late|upcoming`), `notes`.
+- **`child_members`** (migration 005) — compartilhamento. `child_id`, `user_email` (lowercase, compõe a PK), `role` (`owner`|`editor`), `created_at`. Permite que múltiplos usuários (pais, avós) acompanhem o mesmo bebê.
 
-**RLS habilitada em todas as tabelas.** Políticas isolam por `family_id = auth.uid()`. PNI types são SELECT-livres para qualquer autenticado.
+**RLS habilitada em todas as tabelas.** SELECT/UPDATE em `children` e CRUD em `vaccine_records`/`vaccine_types` (custom) liberados para o dono (`family_id = auth.uid()`) **OU** para quem está em `child_members` com `user_email = lower(auth.jwt() ->> 'email')`. **DELETE de criança continua restrito ao dono.** PNI types são SELECT-livres para qualquer autenticado.
 
 **Storage:** bucket `child-photos` (público) usado em `ChildProfile` para upload de foto. Precisa ser criado manualmente no Supabase Dashboard se ainda não existir.
 

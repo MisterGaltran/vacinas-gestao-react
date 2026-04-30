@@ -10,6 +10,15 @@ export interface Child {
   created_at: string;
 }
 
+export type ChildMemberRole = 'owner' | 'editor';
+
+export interface ChildMember {
+  child_id: string;
+  user_email: string;
+  role: ChildMemberRole;
+  created_at: string;
+}
+
 export interface VaccineType {
   id: string;
   name: string;
