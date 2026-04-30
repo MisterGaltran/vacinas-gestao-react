@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useChildren } from '../hooks/useChildren';
@@ -44,6 +44,20 @@ export function Dashboard() {
   const { children, loading: childrenLoading, addChild } = useChildren(user);
   const { statsByChild } = useChildrenStats(children);
   const [selectedChild, setSelectedChild] = useState<Child | null>(null);
+
+  // Se selectedChild não existe mais em children (deletado, RLS mudou, etc.),
+  // reseta para evitar tela em branco. Reaproveita a referência se o mesmo
+  // id continua disponível, mas com dados atualizados.
+  useEffect(() => {
+    if (!selectedChild) return;
+    const fresh = children.find((c) => c.id === selectedChild.id);
+    if (!fresh) {
+      setSelectedChild(null);
+    } else if (fresh !== selectedChild) {
+      setSelectedChild(fresh);
+    }
+  }, [children, selectedChild]);
+
   const { vaccines, loading: vaccinesLoading, markAsTaken, unmarkVaccine, addCustomVaccine, deleteCustomVaccine } = useVaccines(selectedChild);
 
   const [showAddChild, setShowAddChild] = useState(false);

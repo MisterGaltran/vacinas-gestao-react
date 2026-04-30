@@ -4,6 +4,7 @@ import { useAuth } from './hooks/useAuth';
 import { Auth } from './pages/Auth';
 import { Dashboard } from './pages/Dashboard';
 import { ChildProfile } from './pages/ChildProfile';
+import { PWAInstallPrompt } from './components/PWAInstallPrompt';
 
 function AppRoutes() {
   const { user, loading } = useAuth();
@@ -31,11 +32,14 @@ function AppRoutes() {
   }
 
   return (
-    <Routes>
-      <Route path="/" element={<Dashboard />} />
-      <Route path="/child/:id" element={<ChildProfile />} />
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+    <>
+      <Routes>
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/child/:id" element={<ChildProfile />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+      <PWAInstallPrompt />
+    </>
   );
 }
 
