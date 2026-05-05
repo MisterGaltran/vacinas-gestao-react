@@ -18,9 +18,9 @@ export function Auth() {
     if (res?.error) {
       setError(
         res.error.message === 'Invalid login credentials'
-          ? 'Email ou senha inválidos.'
+          ? 'Email ou senha invalidos.'
           : res.error.message === 'User already registered'
-            ? 'Este email já está cadastrado.'
+            ? 'Este email ja esta cadastrado.'
             : res.error.message
       );
     }
@@ -34,22 +34,27 @@ export function Auth() {
         <div className="text-center mb-10">
           <div className="relative inline-block mb-5">
             <div className="absolute inset-0 bg-gradient-to-br from-primary-400 to-accent-400 rounded-2xl opacity-20 blur-2xl scale-150" />
-            <div className="relative w-20 h-20 bg-white dark:bg-gray-800 rounded-2xl shadow-xl shadow-primary-500/10 flex items-center justify-center">
-              <span className="text-4xl animate-float">💉</span>
+            <div className="relative w-20 h-20 bg-white dark:bg-gray-800 rounded-2xl shadow-xl shadow-primary-500/15 flex items-center justify-center">
+              {/* Icone escudo */}
+              <div className="w-12 h-12 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center shadow-md shadow-primary-500/25">
+                <svg className="w-7 h-7 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+              </div>
             </div>
           </div>
           <h1 className="text-2xl font-extrabold text-text-primary-light dark:text-text-primary-dark">
-            Gestão de Vacinas
+            Caderneta Digital
           </h1>
           <p className="text-sm text-text-secondary-light dark:text-text-secondary-dark mt-1.5 max-w-xs mx-auto">
-            Proteja sua família com um acompanhamento completo de vacinas
+            Acompanhe as vacinas do seu bebe com carinho e praticidade 💗
           </p>
         </div>
 
-        {/* Card de autenticação */}
+        {/* Card de autenticacao */}
         <div className="card-premium">
           {/* Tabs */}
-          <div className="flex bg-black/5 dark:bg-white/5 rounded-xl p-1 mb-6">
+          <div className="flex bg-primary-50 dark:bg-white/5 rounded-xl p-1 mb-6">
             <button
               onClick={() => { setIsSignUp(false); setError(''); }}
               className={`flex-1 py-2 text-xs font-semibold rounded-lg transition-all duration-200 ${
@@ -72,7 +77,7 @@ export function Auth() {
             </button>
           </div>
 
-          {/* Formulário */}
+          {/* Formulario */}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
               <label className="block text-xs font-semibold text-text-primary-light dark:text-text-primary-dark mb-1.5">
@@ -118,21 +123,21 @@ export function Auth() {
                 />
               </div>
               {isSignUp && (
-                <p className="text-[10px] text-text-muted-light dark:text-text-muted-dark mt-1.5 ml-1">
-                  Mínimo de 6 caracteres
+                <p className="text-[11px] text-text-muted-light dark:text-text-muted-dark mt-1.5 ml-1">
+                  Minimo de 6 caracteres
                 </p>
               )}
             </div>
 
             {/* Erro */}
             {error && (
-              <div className="bg-danger-50 dark:bg-danger-500/10 border border-danger-200 dark:border-danger-500/20 rounded-xl px-3.5 py-2.5 flex items-center gap-2.5 animate-scale-in">
+              <div className="bg-danger-50 dark:bg-danger-500/10 border border-danger-200 dark:border-danger-500/20 rounded-xl px-3.5 py-2.5 flex items-center gap-2.5 animate-scale-in" role="alert">
                 <span className="text-sm shrink-0">⚠️</span>
                 <p className="text-xs text-danger-700 dark:text-danger-400">{error}</p>
               </div>
             )}
 
-            {/* Botão */}
+            {/* Botao */}
             <button
               type="submit"
               disabled={loading}
@@ -156,8 +161,8 @@ export function Auth() {
         </div>
 
         {/* Footer */}
-        <p className="text-center text-[10px] text-text-muted-light dark:text-text-muted-dark mt-8">
-          Ao entrar, você concorda em manter suas crianças vacinadas 💚
+        <p className="text-center text-[11px] text-text-muted-light dark:text-text-muted-dark mt-8">
+          Ao entrar, voce concorda em manter suas criancas vacinadas 💗
         </p>
       </div>
     </div>

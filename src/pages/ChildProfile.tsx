@@ -5,6 +5,9 @@ import { useChildren } from '../hooks/useChildren';
 import { useChildMembers } from '../hooks/useChildMembers';
 import { useVaccines } from '../hooks/useVaccines';
 import { Layout } from '../components/Layout';
+import { ProgressRing } from '../components/ProgressRing';
+import { ConfirmModal } from '../components/ConfirmModal';
+import { useToast } from '../components/Toast';
 import { supabase } from '../lib/supabase';
 import { resizeImage } from '../lib/imageResize';
 
@@ -26,13 +29,12 @@ export function ChildProfile() {
   const child = children.find((c) => c.id === id) || null;
   const { vaccines } = useVaccines(child);
   const { members, addMember, removeMember } = useChildMembers(child?.id);
+  const { showToast } = useToast();
 
   const isOwner = !!(user && child && child.family_id === user.id);
 
   const [editing, setEditing] = useState(false);
   const [showDelete, setShowDelete] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
   // Sharing form
   const [newMemberEmail, setNewMemberEmail] = useState('');
@@ -72,11 +74,11 @@ export function ChildProfile() {
 
   if (!child) {
     return (
-      <Layout title="Não encontrado" onBack={() => navigate('/')}>
+      <Layout title="Nao encontrado" onBack={() => navigate('/')}>
         <div className="text-center py-20">
           <span className="text-5xl block mb-4">🔍</span>
           <h2 className="text-lg font-bold text-text-primary-light dark:text-text-primary-dark">
-            Criança não encontrada
+            Crianca nao encontrada
           </h2>
         </div>
       </Layout>
@@ -87,6 +89,7 @@ export function ChildProfile() {
   const lateCount = vaccines.filter((v) => v.calculated_status === 'late').length;
   const upcomingCount = vaccines.filter((v) => v.calculated_status === 'upcoming').length;
   const totalCount = vaccines.length;
+  const coverage = totalCount > 0 ? Math.round((takenCount / totalCount) * 100) : 0;
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,11 +105,10 @@ export function ChildProfile() {
     });
 
     if (updateError) {
-      setError(updateError.message);
+      showToast(updateError.message);
     } else {
-      setSuccess('Perfil atualizado com sucesso!');
+      showToast('Perfil atualizado com sucesso!', 'success');
       setEditing(false);
-      setTimeout(() => setSuccess(''), 3000);
     }
   };
 
@@ -114,7 +116,7 @@ export function ChildProfile() {
     if (!child) return;
     const { error: delError } = await removeChild(child.id);
     if (delError) {
-      setError(delError.message);
+      showToast(delError.message);
     } else {
       navigate('/');
     }
@@ -126,8 +128,6 @@ export function ChildProfile() {
 
     setUploadingPhoto(true);
     try {
-      // Redimensiona no browser antes de mandar pro Storage. Foto típica de
-      // celular tem 3-5 MB; resultado fica ~50-150 KB sem perda visual.
       const { blob } = await resizeImage(file, {
         maxWidth: 800,
         maxHeight: 800,
@@ -140,7 +140,7 @@ export function ChildProfile() {
         .from('child-photos')
         .upload(fileName, blob, {
           contentType: 'image/jpeg',
-          cacheControl: '31536000', // 1 ano: o nome é único, sempre seguro
+          cacheControl: '31536000',
         });
 
       if (uploadError) throw uploadError;
@@ -153,9 +153,10 @@ export function ChildProfile() {
       if (publicUrl) {
         setPhotoUrl(publicUrl);
         await updateChild(child.id, { photo_url: publicUrl });
+        showToast('Foto atualizada!', 'success');
       }
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Erro ao fazer upload da foto');
+      showToast(err instanceof Error ? err.message : 'Erro ao fazer upload da foto');
     } finally {
       setUploadingPhoto(false);
     }
@@ -167,36 +168,6 @@ export function ChildProfile() {
       onLogout={signOut}
       onBack={() => navigate('/')}
     >
-      {/* Toast */}
-      {error && (
-        <div className="fixed top-20 right-4 z-50 max-w-sm animate-scale-in">
-          <div className="bg-danger-50 dark:bg-danger-500/10 border border-danger-200 dark:border-danger-500/20 rounded-2xl px-4 py-3 flex items-start gap-3 shadow-lg">
-            <span className="text-lg shrink-0">⚠️</span>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-danger-700 dark:text-danger-400">Erro</p>
-              <p className="text-xs text-danger-600 dark:text-danger-300 mt-0.5">{error}</p>
-            </div>
-            <button onClick={() => setError('')} className="text-danger-400 hover:text-danger-600 shrink-0">
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-              </svg>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {success && (
-        <div className="fixed top-20 right-4 z-50 max-w-sm animate-scale-in">
-          <div className="bg-success-50 dark:bg-success-500/10 border border-success-200 dark:border-success-500/20 rounded-2xl px-4 py-3 flex items-start gap-3 shadow-lg">
-            <span className="text-lg shrink-0">✅</span>
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-success-700 dark:text-success-400">Sucesso</p>
-              <p className="text-xs text-success-600 dark:text-success-300 mt-0.5">{success}</p>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Header com foto e nome */}
       <div className="card-premium mb-6 animate-fade-in-up">
         <div className="flex items-start gap-5">
@@ -237,7 +208,7 @@ export function ChildProfile() {
             )}
           </div>
 
-          {/* Info básica */}
+          {/* Info basica */}
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold text-text-primary-light dark:text-text-primary-dark truncate">
               {child.name}
@@ -275,7 +246,7 @@ export function ChildProfile() {
                   <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                   </svg>
-                  Compartilhado com você
+                  Compartilhado com voce
                 </span>
               )}
             </div>
@@ -283,43 +254,30 @@ export function ChildProfile() {
         </div>
       </div>
 
-      {/* Stats rápidas */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
-        <div className="card-stat border-t-[3px] border-t-primary-400">
-          <div className="text-2xl font-extrabold text-text-primary-light dark:text-text-primary-dark tabular-nums">{totalCount}</div>
-          <p className="text-[10px] font-semibold text-text-muted-light dark:text-text-muted-dark uppercase tracking-wider">Total de Vacinas</p>
-        </div>
-        <div className="card-stat border-t-[3px] border-t-success-500">
-          <div className="text-2xl font-extrabold text-success-600 dark:text-green-400 tabular-nums">{takenCount}</div>
-          <p className="text-[10px] font-semibold text-success-600 dark:text-green-400 uppercase tracking-wider">✅ Tomadas</p>
-        </div>
-        <div className="card-stat border-t-[3px] border-t-danger-500">
-          <div className="text-2xl font-extrabold text-danger-600 dark:text-red-400 tabular-nums">{lateCount}</div>
-          <p className="text-[10px] font-semibold text-danger-600 dark:text-red-400 uppercase tracking-wider">🔴 Atrasadas</p>
-        </div>
-        <div className="card-stat border-t-[3px] border-t-primary-400">
-          <div className="text-2xl font-extrabold text-primary-600 dark:text-blue-400 tabular-nums">{upcomingCount}</div>
-          <p className="text-[10px] font-semibold text-primary-600 dark:text-blue-400 uppercase tracking-wider">🔜 Próximas</p>
-        </div>
-      </div>
-
-      {/* Barra de progresso */}
+      {/* Cobertura com Progress Ring */}
       {totalCount > 0 && (
-        <div className="card-premium mb-6 !p-4">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-semibold text-text-primary-light dark:text-text-primary-dark">Cobertura Vacinal</span>
-            <span className="text-xs font-bold text-success-600 dark:text-green-400">{Math.round((takenCount / totalCount) * 100)}%</span>
-          </div>
-          <div className="h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-success-400 to-success-500 rounded-full transition-all duration-700 ease-out"
-              style={{ width: `${(takenCount / totalCount) * 100}%` }}
-            />
+        <div className="card-premium mb-6 !p-5">
+          <div className="flex items-center gap-6">
+            <ProgressRing percentage={coverage} size={80} strokeWidth={6} label="cobertura" />
+            <div className="flex-1 grid grid-cols-3 gap-2">
+              <div className="text-center">
+                <div className="text-lg font-extrabold text-success-600 dark:text-emerald-300 tabular-nums">{takenCount}</div>
+                <p className="text-[11px] font-semibold text-success-600 dark:text-emerald-300 uppercase">✅ Tomadas</p>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-extrabold text-danger-600 dark:text-rose-300 tabular-nums">{lateCount}</div>
+                <p className="text-[11px] font-semibold text-danger-600 dark:text-rose-300 uppercase">🔴 Atrasadas</p>
+              </div>
+              <div className="text-center">
+                <div className="text-lg font-extrabold text-primary-600 dark:text-rose-300 tabular-nums">{upcomingCount}</div>
+                <p className="text-[11px] font-semibold text-primary-600 dark:text-rose-300 uppercase">🔜 Proximas</p>
+              </div>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Formulário de edição */}
+      {/* Formulario de edicao */}
       {editing && (
         <form onSubmit={handleSave} className="card-premium mb-6 animate-scale-in">
           <div className="flex items-center gap-3 mb-5">
@@ -328,7 +286,7 @@ export function ChildProfile() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
               </svg>
             </div>
-            <h3 className="text-base font-bold text-text-primary-light dark:text-text-primary-dark">Editar Informações</h3>
+            <h3 className="text-base font-bold text-text-primary-light dark:text-text-primary-dark">Editar Informacoes</h3>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -359,38 +317,38 @@ export function ChildProfile() {
           </div>
 
           <div className="flex gap-2 mt-5 pt-4 border-t border-border-light dark:border-border-dark">
-            <button type="submit" className="btn-primary">Salvar Alterações</button>
+            <button type="submit" className="btn-primary">Salvar Alteracoes</button>
             <button type="button" onClick={() => setEditing(false)} className="btn-secondary">Cancelar</button>
           </div>
         </form>
       )}
 
-      {/* Campos extras (visualização) */}
+      {/* Campos extras (visualizacao) */}
       {!editing && (
         <div className="card-premium mb-6 animate-fade-in-up">
           <h3 className="text-sm font-bold text-text-primary-light dark:text-text-primary-dark mb-4 flex items-center gap-2">
             <svg className="w-5 h-5 text-text-muted-light dark:text-text-muted-dark" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
             </svg>
-            Informações Adicionais
+            Informacoes Adicionais
           </h3>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl px-4 py-3">
-              <p className="text-[10px] font-semibold text-text-muted-light dark:text-text-muted-dark uppercase tracking-wider">📧 E-mail dos Pais</p>
+            <div className="bg-primary-50/50 dark:bg-gray-800/50 rounded-xl px-4 py-3">
+              <p className="text-[11px] font-semibold text-text-muted-light dark:text-text-muted-dark uppercase tracking-wider">📧 E-mail dos Pais</p>
               <p className="text-sm text-text-primary-light dark:text-text-primary-dark mt-0.5 truncate">
-                {child.parental_email || 'Não informado'}
+                {child.parental_email || 'Nao informado'}
               </p>
             </div>
-            <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl px-4 py-3">
-              <p className="text-[10px] font-semibold text-text-muted-light dark:text-text-muted-dark uppercase tracking-wider">🏥 Maternidade</p>
+            <div className="bg-primary-50/50 dark:bg-gray-800/50 rounded-xl px-4 py-3">
+              <p className="text-[11px] font-semibold text-text-muted-light dark:text-text-muted-dark uppercase tracking-wider">🏥 Maternidade</p>
               <p className="text-sm text-text-primary-light dark:text-text-primary-dark mt-0.5 truncate">
-                {child.maternity || 'Não informado'}
+                {child.maternity || 'Nao informado'}
               </p>
             </div>
-            <div className="bg-gray-50 dark:bg-gray-800/50 rounded-xl px-4 py-3 sm:col-span-2">
-              <p className="text-[10px] font-semibold text-text-muted-light dark:text-text-muted-dark uppercase tracking-wider">📋 CPF</p>
+            <div className="bg-primary-50/50 dark:bg-gray-800/50 rounded-xl px-4 py-3 sm:col-span-2">
+              <p className="text-[11px] font-semibold text-text-muted-light dark:text-text-muted-dark uppercase tracking-wider">📋 CPF</p>
               <p className="text-sm text-text-primary-light dark:text-text-primary-dark mt-0.5">
-                {child.cpf || 'Não informado'}
+                {child.cpf || 'Nao informado'}
               </p>
             </div>
           </div>
@@ -407,7 +365,7 @@ export function ChildProfile() {
           </div>
           <div className="flex-1 min-w-0">
             <h3 className="text-sm font-bold text-text-primary-light dark:text-text-primary-dark">
-              Compartilhar com a família
+              Compartilhar com a familia
             </h3>
             <p className="text-[11px] text-text-muted-light dark:text-text-muted-dark mt-0.5">
               {isOwner
@@ -421,7 +379,7 @@ export function ChildProfile() {
         <div className="space-y-2 mb-4">
           {members.length === 0 && (
             <p className="text-xs text-text-muted-light dark:text-text-muted-dark italic px-2 py-3 text-center">
-              Ninguém ainda. {isOwner ? 'Adicione um e-mail abaixo.' : ''}
+              Ninguem ainda. {isOwner ? 'Adicione um e-mail abaixo.' : ''}
             </p>
           )}
           {members.map((m) => {
@@ -429,7 +387,7 @@ export function ChildProfile() {
             return (
               <div
                 key={m.user_email}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-gray-50 dark:bg-gray-800/50 border border-border-light dark:border-border-dark"
+                className="flex items-center gap-3 px-3 py-2.5 rounded-xl bg-primary-50/50 dark:bg-gray-800/50 border border-border-light dark:border-border-dark"
               >
                 <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-white text-xs font-bold shrink-0 ${
                   m.role === 'owner'
@@ -442,13 +400,13 @@ export function ChildProfile() {
                   <p className="text-xs font-semibold text-text-primary-light dark:text-text-primary-dark truncate">
                     {m.user_email}
                     {isCurrentUser && (
-                      <span className="ml-1.5 text-[10px] text-text-muted-light dark:text-text-muted-dark">(você)</span>
+                      <span className="ml-1.5 text-[11px] text-text-muted-light dark:text-text-muted-dark">(voce)</span>
                     )}
                   </p>
-                  <span className={`inline-block text-[10px] font-semibold uppercase tracking-wider mt-0.5 ${
+                  <span className={`inline-block text-[11px] font-semibold uppercase tracking-wider mt-0.5 ${
                     m.role === 'owner'
                       ? 'text-primary-600 dark:text-primary-400'
-                      : 'text-success-600 dark:text-green-400'
+                      : 'text-success-600 dark:text-emerald-300'
                   }`}>
                     {m.role === 'owner' ? '👑 Dono' : '✏️ Editor'}
                   </span>
@@ -457,11 +415,11 @@ export function ChildProfile() {
                   <button
                     onClick={async () => {
                       const { error: rmError } = await removeMember(m.user_email);
-                      if (rmError) setError(rmError.message);
+                      if (rmError) showToast(rmError.message);
                     }}
                     className="w-8 h-8 flex items-center justify-center rounded-lg text-danger-400 hover:bg-danger-50 dark:hover:bg-danger-500/10 hover:text-danger-600 transition-all"
                     title="Remover acesso"
-                    aria-label="Remover acesso"
+                    aria-label={`Remover acesso de ${m.user_email}`}
                   >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -473,7 +431,7 @@ export function ChildProfile() {
           })}
         </div>
 
-        {/* Form: adicionar membro (só dono) */}
+        {/* Form: adicionar membro (so dono) */}
         {isOwner && (
           <form
             onSubmit={async (e) => {
@@ -482,11 +440,10 @@ export function ChildProfile() {
               setAddingMember(true);
               const { error: addError } = await addMember(newMemberEmail);
               if (addError) {
-                setError(addError.message);
+                showToast(addError.message);
               } else {
-                setSuccess(`Acesso liberado para ${newMemberEmail.toLowerCase()}`);
+                showToast(`Acesso liberado para ${newMemberEmail.toLowerCase()}`, 'success');
                 setNewMemberEmail('');
-                setTimeout(() => setSuccess(''), 3000);
               }
               setAddingMember(false);
             }}
@@ -511,33 +468,25 @@ export function ChildProfile() {
         )}
 
         {isOwner && (
-          <p className="text-[10px] text-text-muted-light dark:text-text-muted-dark mt-3 leading-relaxed">
-            💡 A pessoa precisa <strong>criar uma conta</strong> no app com esse mesmo e-mail para que o bebê apareça pra ela.
-            Editores podem registrar vacinas e editar o perfil — mas só você pode excluir o bebê.
+          <p className="text-[11px] text-text-muted-light dark:text-text-muted-dark mt-3 leading-relaxed">
+            💡 A pessoa precisa <strong>criar uma conta</strong> no app com esse mesmo e-mail para que o bebe apareca pra ela.
+            Editores podem registrar vacinas e editar o perfil — mas so voce pode excluir o bebe.
           </p>
         )}
       </div>
 
-      {/* Modal de confirmação de exclusão */}
-      {showDelete && (
-        <div className="fixed inset-0 bg-black/50 dark:bg-black/70 z-50 flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl p-6 max-w-sm w-full shadow-2xl animate-scale-in">
-            <div className="text-center">
-              <span className="text-5xl block mb-4">⚠️</span>
-              <h3 className="text-lg font-bold text-text-primary-light dark:text-text-primary-dark">Excluir {child.name}?</h3>
-              <p className="text-sm text-text-secondary-light dark:text-text-secondary-dark mt-2">
-                Esta ação não pode ser desfeita. Todos os dados de vacinas serão permanentemente removidos.
-              </p>
-            </div>
-            <div className="flex gap-2 mt-6">
-              <button onClick={handleDelete} className="flex-1 bg-danger-500 hover:bg-danger-600 text-white rounded-xl px-4 py-2.5 text-sm font-semibold transition-all shadow-md shadow-danger-500/25">
-                Sim, excluir
-              </button>
-              <button onClick={() => setShowDelete(false)} className="flex-1 btn-secondary">Cancelar</button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Modal de exclusao */}
+      <ConfirmModal
+        open={showDelete}
+        onConfirm={handleDelete}
+        onCancel={() => setShowDelete(false)}
+        title={`Excluir ${child.name}?`}
+        description="Esta acao nao pode ser desfeita. Todos os dados de vacinas serao permanentemente removidos."
+        confirmLabel="Sim, excluir"
+        cancelLabel="Cancelar"
+        icon="⚠️"
+        variant="danger"
+      />
     </Layout>
   );
 }
